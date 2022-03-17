@@ -1,31 +1,30 @@
-#Tutorial: https://lashlock.github.io/compbio/R_presentation.html
+setwd("~/AlgaeProject/Nannochloropsis/outputs/")
 
-setwd("C:/Users/hr/Documents/AlgaeProject_R_scripts/")
+# extract the files containing "genome"
+DIR=dir(path = ".",pattern = "renamed", full.names = T)
 
-# Formating countdata from MergeTable.R
-countData_collector <- read.csv("MergeTables_collector_genomes.csv", header=T, sep=",")
-countData_round <- round(countData_collector[3:6], digits=0)   #round numbers to integers
-countData <- data.frame(countData_collector[1:2], countData_round)
-countData = subset(countData, select = -c(X) ) #Delete column with numbers that annoys DESeqDataSetFromMatrix()
-head(countData)
+# generate starting point for the collector table
+abundPath=dir(DIR[1] ,"tsv", full.names = T)
+temp=read.table(abundPath, header = T)
+collector=temp[,c(1,4)]
+head(collector)
 
-metaData <- read.csv('sample_info.csv', header = TRUE, sep = ";")
-metaData
+# generate collector table
+for(i in DIR[-1] ){
+  print(i)
+  abundPath=dir(i,"tsv", full.names = T)
+  temp=read.table(abundPath, header =T )
+  print(all(temp[,1] == collector[,1]  ))
+  collector=cbind(collector,temp[,4] )
+} 
+head(collector)
 
+#rename to sample names
+colnames(collector) =c("feat",basename(DIR))
+head(collector)
 
-# Ensure that nrow(metaData) == ncol(countData) -1
-nrow(metaData) #4
-ncol(countData) #5
+# round off reads to integers
+collector[,2:ncol(collector)] <- round(collector[,2:ncol(collector)], digits=0)
+head(collector)
 
-dds <- DESeqDataSetFromMatrix(countData=countData, 
-                              colData=metaData, 
-                              design=~axenic, tidy = TRUE)
-
-
-dds <- DESeq(dds)
-
-res <- results(dds)
-summary(res)
-
-res <- res[order(res$padj),]
-head(res)
+write.csv(collector,"~/AlgaeProject/Nannochloropsis/Scripts/MergeTables_collector_cds.csv", row.names = F)
