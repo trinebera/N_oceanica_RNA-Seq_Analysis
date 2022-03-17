@@ -1,0 +1,31 @@
+#Tutorial: https://lashlock.github.io/compbio/R_presentation.html
+
+setwd("C:/Users/hr/Documents/AlgaeProject_R_scripts/")
+
+# Formating countdata from MergeTable.R
+countData_collector <- read.csv("MergeTables_collector_genomes.csv", header=T, sep=",")
+countData_round <- round(countData_collector[3:6], digits=0)   #round numbers to integers
+countData <- data.frame(countData_collector[1:2], countData_round)
+countData = subset(countData, select = -c(X) ) #Delete column with numbers that annoys DESeqDataSetFromMatrix()
+head(countData)
+
+metaData <- read.csv('sample_info.csv', header = TRUE, sep = ";")
+metaData
+
+
+# Ensure that nrow(metaData) == ncol(countData) -1
+nrow(metaData) #4
+ncol(countData) #5
+
+dds <- DESeqDataSetFromMatrix(countData=countData, 
+                              colData=metaData, 
+                              design=~axenic, tidy = TRUE)
+
+
+dds <- DESeq(dds)
+
+res <- results(dds)
+summary(res)
+
+res <- res[order(res$padj),]
+head(res)
