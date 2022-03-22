@@ -1,6 +1,6 @@
 setwd("~/AlgaeProject/Nannochloropsis/outputs/")
 
-# extract the files containing "genome"
+# extract the files containing "renamed"
 DIR=dir(path = ".",pattern = "renamed", full.names = T)
 
 # generate starting point for the collector table
