@@ -30,3 +30,7 @@ summary(res)
 # Sort the result table by p value
 res <- res[order(res$padj),]
 head(res)
+
+# Investigate your normalization of counts with DESEq in this tutorial:
+# https://github.com/hbctraining/DGE_workshop/blob/master/lessons/02_DGE_count_normalization.md
+
