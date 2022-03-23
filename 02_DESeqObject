@@ -1,0 +1,32 @@
+library("DESeq2")
+#Tutorial: https://lashlock.github.io/compbio/R_presentation.html
+
+setwd("C:/Users/hr/Documents/AlgaeProject_R_scripts/")
+
+#countData formated in MergeTables.R
+countData <- read.csv("MergeTables_collector_cds.csv", header=T, sep=",")
+head(countData)
+
+metaData <- read.csv('sample_info_cds.csv', header = TRUE, sep = ";")
+metaData
+
+# Ensure that nrow(metaData) == ncol(countData) -1
+nrow(metaData) # X-1
+ncol(countData) # X
+
+#renaming "gene names" to less overwhelming names
+countDataShort <- countData
+countDataShort[1] <- sapply(strsplit(countDataShort[,1], ".model"), '[',1)
+
+dds <- DESeqDataSetFromMatrix(countData=countDataShort, 
+                              colData=metaData, 
+                              design=~sample_type, tidy = TRUE)
+
+dds <- DESeq(dds)
+
+res <- results(dds)
+summary(res)
+
+# Sort the result table by p value
+res <- res[order(res$padj),]
+head(res)
