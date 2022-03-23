@@ -1,0 +1,26 @@
+# Find the distribution of your data to determine statistical model. 
+# DESeq uses a negative binomial model to analyse data where the mean < variance. 
+
+#Tutorial: https://github.com/hbctraining/DGE_workshop/blob/master/lessons/01_DGE_setup_and_overview.md
+library("ggplot2")
+
+# Distribution of gene counts for one sample: Ax1_oceanica_cds_renamed
+ggplot(countDataShort) +
+  geom_histogram(aes(x = Ax1_oceanica_cds_renamed), stat = "bin", bins = 200) +
+  xlim(-5,30000)
+  xlab("Raw expression counts") +
+  ylab("Number of genes")
+
+
+# Investigate if mean < variance
+mean_counts <- apply(countDataShort[, 3:5], 1, mean)
+variance_counts <- apply(countDataShort[, 3:5], 1, var)
+df <- data.frame(mean_counts, variance_counts)
+
+ggplot(df) +
+  geom_point(aes(x=mean_counts, y=variance_counts)) + 
+  geom_line(aes(x=mean_counts, y=mean_counts, color="red")) +
+  scale_y_log10() +
+  scale_x_log10()
+
+# As the variance tends to be greater than the mean, I should analyse data with a negative binomial model and therefore use DESeq.
