@@ -1,0 +1,9 @@
+# Tutorial: https://lashlock.github.io/compbio/R_presentation.html
+
+# First we need to transform the raw count data
+# vst function will perform variance stabilizing transformation
+# (not completely sure what that means yet)
+
+vsdata <- vst(dds, blind=FALSE)
+
+plotPCA(vsdata, intgroup="sample_type") #using the DESEQ2 plotPCA fxn we can
