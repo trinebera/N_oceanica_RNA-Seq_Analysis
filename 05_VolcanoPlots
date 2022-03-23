@@ -1,0 +1,24 @@
+library("EnhancedVolcano")
+library("tidyverse")
+# Tutorial: https://lashlock.github.io/compbio/R_presentation.html
+
+setwd("C:/Users/hr/Documents/AlgaeProject_R_scripts/")
+
+# Make a basic volcano plot
+with(res, plot(log2FoldChange, -log10(pvalue), pch=20, main="Volcano plot", xlim=c(-4,4)))
+
+# Add colored points: blue if padj<0.01, red if log2FC>1 and padj<0.05)
+with(subset(res, padj<.05 ), points(log2FoldChange, -log10(pvalue), pch=20, col="red"))
+with(subset(res, padj<.01 ), points(log2FoldChange, -log10(pvalue), pch=20, col="blue"))
+with(subset(res, padj<.01 & abs(log2FoldChange)>1), points(log2FoldChange, -log10(pvalue), 
+                                                           pch=20, col="green"))
+
+# Next step: add names on this plot. 
+# Investigate more options for plotting: https://github.com/kevinblighe/EnhancedVolcano
+
+EnhancedVolcanoPlot <- EnhancedVolcano(res,
+                        lab = rownames(res),
+                        x = 'log2FoldChange',
+                        y = 'pvalue')
+
+
