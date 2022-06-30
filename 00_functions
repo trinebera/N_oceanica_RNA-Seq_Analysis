@@ -1,0 +1,238 @@
+
+###
+### Load and clean data-----------------------------------------------------------
+###
+
+read_clean_countData <- function(...){
+  #path_to_data <- "C:/Users/hr/Documents/AlgaeProject_R_scripts/sample_info/"
+  #setwd(path_to_data)
+  
+  #countData formated in MergeData.R
+  countData <- read.csv("sample_info/MergeTables_collector_fun-mrna.csv", 
+                        header=T, sep=";")
+
+  #renaming sample names to less overwhelming names (for fun mrna files)
+  countDataShort <- countData
+  colnames(countDataShort)[2:13]<- sapply(strsplit(colnames(countDataShort)[2:13], "_"), '[',1)
+  return(countDataShort)
+}
+
+
+read_clean_metaData <- function(){
+  #path_to_data <- "C:/Users/hr/Documents/AlgaeProject_R_scripts/sample_info/"
+  #setwd(path_to_data)
+  metaData <- read.csv("sample_info/sample_info_fun_mrna_extra.csv", 
+                       header = TRUE, sep=";")
+
+  
+  #countData formated in MergeData.R
+  countData <- read.csv("sample_info/MergeTables_collector_fun-mrna.csv", 
+                        header=T, sep=";")
+  
+  #renaming sample names to less overwhelming names (for fun mrna files)
+  countDataShort <- countData
+  colnames(countDataShort)[2:13]<- sapply(strsplit(colnames(countDataShort)[2:13], "_"), '[',1)
+
+  metaDataShort <- metaData
+  metaDataShort$sample_name<- sapply(strsplit(colnames(countDataShort)[2:13], "_"), '[',1)
+  
+  return(metaDataShort)
+}
+
+#test <- read_clean_metaData()
+
+###
+### For Venn Diagrams
+###
+
+display_venn <- function(x, ...){
+  library(VennDiagram)
+  grid.newpage()
+  venn_object <- venn.diagram(x, filename = NULL, ...)
+  grid.draw(venn_object)
+}
+
+
+###
+### Make fasta file from DEGs from res table
+###
+
+# This function is used to get a fasta file with the genes from the DEGs that are inputted to the function
+
+DEGs_fasta <- function(resDEGs){
+  setwd("C:/Users/hr/Documents/AlgaeProject_R_scripts")
+  mrna_fasta <- read.fasta("funannotate/Nannochloropsis_oceanica_CCAP211.mrna-transcripts.fa")
+  index = which(names(mrna_fasta) %in% 
+                  rownames(resDEGs))
+  niels=mrna_fasta[index]
+  
+  path = "C:/Users/hr/Documents/AlgaeProject_R_scripts/R_outputs/"
+  path_name = paste0(path, "mrna_", deparse(substitute(resDEGs)), ".fasta")
+  
+  seqinr::write.fasta(sequences = niels, 
+                      names = names(niels), 
+                      file.out = path_name)
+}
+
+
+
+###
+### makeTop20DEGsTable-----------------------------------------------------------
+###
+
+# Make top20DEGs table
+# result_table is any result table made from dds
+# the function will sort the table so it is ordered by adjusted p value
+# the DEGs with lowest padj will be in top. 
+# the top 20 DEGs will be saved in a table called top20DEGs_name-of-table-inserted-into-function
+
+#Maybe this should not be top 20 but something you could just choose to do afterwards?
+makeTop20DEGsTable = function(result_table, annotation_table){
+  result_table_sort <- result_table[order(result_table$padj),]
+  #Extract some top genes
+  top20DEG  <- head(result_table_sort, 20)
+  # list of top20 gene names
+  top20DEG_names <- rownames(top20DEG)
+  
+  # Make a table with annotation of the 20 most significant genes
+  top20DEG_annotation <- annotation_table[annotation_table$TranscriptID == top20DEG_names[1],]
+  
+  for (i in top20DEG_names[-1]){
+    temp = annotation_table[annotation_table$TranscriptID == i,]
+    top20DEG_annotation=rbind(top20DEG_annotation,temp)
+  }
+  
+  #choosing the first information in InterPro section
+  interpro_info <- top20DEG_annotation$InterPro
+  interpro_info <- sapply(strsplit(interpro_info, ";"), '[',1)
+  
+  top20DEG_annotation_simple <- cbind(top20DEG_annotation$TranscriptID,
+                                      top20DEG_annotation$Name, 
+                                      top20DEG_annotation$Product, 
+                                      interpro_info)
+  
+  colnames(top20DEG_annotation_simple) <- c("TranscriptID","Name", "Product", "InterPro")
+  
+  path = "C:/Users/hr/Documents/AlgaeProject_R_scripts/R_outputs/"
+  path_name = paste0(path, "top20DEGs_", deparse(substitute(result_table)), ".csv")
+  write.csv2(top20DEG_annotation_simple, path_name, row.names = T)
+  
+  return(top20DEG_annotation)
+}
+
+
+sharedDEGs <- function(input){
+  
+  #Collect all the genes present in each table
+  all_DEGs = c(input$DEG_table1$TranscriptID)
+  for (i in names(input[-1])){
+    temp = input[[i]]
+    all_DEGs <- c(all_DEGs, temp$TranscriptID)
+  }
+  
+  # Make a list of unique gene names from the table
+  all_DEGs_unique <- unique(all_DEGs)
+  DEGs_allocation <- as.data.frame(all_DEGs_unique)
+  
+  # Go through each table in the list
+  for (j in names(input)){
+    temp = input[[j]]
+    presence_vec <- c()
+    
+    # Go through each unique gene
+    for (i in all_DEGs_unique){
+      
+      # if the gene is present in table once, the sum will be 1. Otherwise 0.
+      presence_vec <- append(presence_vec, sum(i==temp$TranscriptID))
+    }
+    
+    # Add presence_vec to the DEGs_allocation table
+    DEGs_allocation <- cbind(DEGs_allocation, presence_vec)
+  }
+  colnames(DEGs_allocation)[-1] <- names(input)
+  DEGs_allocation$row_sums <- rowSums(DEGs_allocation[-1])
+  
+  return(DEGs_allocation)
+}
+
+#DEGs_test <- sharedDEGs(input)
+
+
+
+eggnog_letter_count <- function(input){
+  
+  COG_letters <- read.csv2("eggnog/COG_letters.csv")
+  COG_samples <- COG_letters
+  
+  
+  # Goes through all the eggnog tables in the input
+  for (i in names(input)){
+    temp = input[[i]]
+    
+    #prepare vector for input for next loop
+    sum_letter_vec <- sum(temp$COG_category == "A", na.rm=TRUE)
+    
+    # goes through all letters except A which we added in sum_letter_vec
+    for (j in COG_letters$letter[-1]){
+      
+      # sum all the genes that are categorized as the given letter. 
+      sum_letter <- sum(temp$COG_category == j, na.rm=TRUE)
+      
+      # add the number of genes of the given letter category to a vector
+      sum_letter_vec <- append(sum_letter_vec, sum_letter)
+    }
+    
+    # add the vector to the COG table and rename it to correct sample
+    COG_samples <- cbind(COG_samples,sum_letter_vec)
+    #colnames(COG_samples) <- c("letter", "function", i)
+  }  
+  
+  colnames(COG_samples) <- c("letter", "function", names(input))
+  
+  return(COG_samples)
+}
+
+
+#Alexis Marshal made this theme function 
+theme_Publication <- function(base_size=10) {
+  library(grid)
+  library(ggthemes)
+  (theme_foundation(base_size=base_size) #, base_family=base_family
+    + theme(plot.title = element_text(face = "bold",
+                                      size = rel(1.2), hjust = 0.5),
+            text = element_text(),
+            panel.background = element_rect(colour = NA),
+            plot.background = element_rect(colour = NA),
+            panel.border = element_rect(colour = NA),
+            axis.title = element_text(face = "bold",size = rel(1)),
+            axis.title.y = element_text(angle=90,vjust =2),
+            axis.title.x = element_text(vjust = -0.2),
+            axis.text = element_text(), 
+            axis.line = element_line(colour="black"),
+            axis.ticks = element_line(),
+            panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank(),
+            legend.key = element_rect(colour = NA),
+            legend.position = "right",
+            legend.direction = "vertical",
+            legend.key.size= unit(0.2, "cm"),
+            legend.spacing = unit(1, "cm"),
+            legend.title = element_blank(),
+            plot.margin=unit(c(10,5,5,5),"mm"),
+            strip.background=element_rect(colour="#f0f0f0",fill="#f0f0f0"),
+            strip.text = element_text(face="bold")
+    ))
+  
+}
+
+scale_fill_Publication <- function(...){
+  library(scales)
+  discrete_scale("fill","Publication",manual_pal(values = c("#FFCC99", "#fdb462","#386cb0","#7fc97f","#ef3b2c","#662506","#a6cee3","#fb9a99","#984ea3","#ffff33")), ...)
+}
+
+scale_colour_Publication <- function(...){
+  library(scales)
+  discrete_scale("colour","Publication",manual_pal(values = c("#E69F00", "#0072B2","#009E73", "#CC79A7","#F0E442", "#D55E00","#56B4E9")), ...)
+  
+}
+
