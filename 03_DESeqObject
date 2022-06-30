@@ -108,3 +108,23 @@ saveRDS(res_Ax_NonAx_s, "R_outputs/res_Ax_NonAx_s.rds")
 saveRDS(res_Ax_YP206_s, "R_outputs/res_Ax_YP206_s.rds")
 saveRDS(res_Ax_YP26_s, "R_outputs/res_Ax_YP26_s.rds")
 
+
+#------------------Annotation of genes--------------------
+# Load the annotation file. 
+# made with funnanotate in Linux
+annotation <- read.csv("funannotate/Nannochloropsis_oceanica_CCAP211.annotations.txt", header = T, sep="\t")
+
+# Counting the DEGs with names
+namedDEGs <- annotation[annotation$Name != "",]
+length(namedDEGs$Name) #269
+no_name <- annotation[annotation$Name=="",]
+length(no_name$Name) #10857
+
+#Counting the Interpro
+InterProDEGs <- annotation[annotation$InterPro != "",]
+length(InterProDEGs$Name) #8159
+
+#Counting pfam
+pfamDEGs <- annotation[annotation$PFAM != "",]
+length(pfamDEGs$Name) #6844
+
