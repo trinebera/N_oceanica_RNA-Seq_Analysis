@@ -1,24 +1,191 @@
+#Explore the distribution of the mRNA reads with volcano plots
+
+#-----------Libraries-and-path--------------------------------------------------
+library("ggplot2") #for plotting
+library("DESeq2") # for DESeq analysis
 library("EnhancedVolcano")
-library("tidyverse")
-# Tutorial: https://lashlock.github.io/compbio/R_presentation.html
+library("patchwork") # for merging the three volcano plots
 
-setwd("C:/Users/hr/Documents/AlgaeProject_R_scripts/")
+#-----------Load-data-----------------------------------------------------------
+setwd("C:/Users/hr/Documents/AlgaeProject_R_scripts")
 
-# Make a basic volcano plot
-with(res, plot(log2FoldChange, -log10(pvalue), pch=20, main="Volcano plot", xlim=c(-4,4)))
+# made in 03_DESeqObject
+dds <- readRDS("R_outputs/dds.rds") #DESeq object
+res <- readRDS("R_outputs/res.rds") #result table from DESeq object
 
-# Add colored points: blue if padj<0.01, red if log2FC>1 and padj<0.05)
-with(subset(res, padj<.05 ), points(log2FoldChange, -log10(pvalue), pch=20, col="red"))
-with(subset(res, padj<.01 ), points(log2FoldChange, -log10(pvalue), pch=20, col="blue"))
-with(subset(res, padj<.01 & abs(log2FoldChange)>1), points(log2FoldChange, -log10(pvalue), 
-                                                           pch=20, col="green"))
+# contrasts
+res_Ax_NonAx <- readRDS("R_outputs/res_Ax_NonAx.rds")
+res_Ax_YP206 <- readRDS("R_outputs/res_Ax_YP206.rds")
+res_Ax_YP26 <- readRDS("R_outputs/res_Ax_YP26.rds")
 
-# Next step: add names on this plot. 
-# Investigate more options for plotting: https://github.com/kevinblighe/EnhancedVolcano
+res_Ax_NonAx_s <- readRDS("R_outputs/res_Ax_NonAx_s.rds")
+res_Ax_YP206_s <- readRDS("R_outputs/res_Ax_YP206_s.rds")
+res_Ax_YP26_s <- readRDS("R_outputs/res_Ax_YP26_s.rds")
 
-EnhancedVolcanoPlot <- EnhancedVolcano(res,
-                        lab = rownames(res),
-                        x = 'log2FoldChange',
-                        y = 'pvalue')
+annotation <- read.csv("funannotate/Nannochloropsis_oceanica_CCAP211.annotations.txt", header = T, sep="\t")
+
+#-----volcano-plots-with-contrast-------
+
+library("EnhancedVolcano")
+library(ggpubr)
+theme_set(theme_pubr())
+
+pCutoff = 0.05
+FCcutoff = 1.0
+
+xlim1 <- c(-10,20)
+xlim2 <- c(-5,5)
+ylim1 <- c(0,20)
+ylim2 <- c(0,10)
+
+# For each of the volcano plots, I manually select the genes that are most significant
+# and has a high log2 fold change
+res_Ax_YP206_s[order(res_Ax_YP206_s$log2FoldChange),]
+
+chosen_genes <- c("FUN_003385-T1","FUN_009514-T1","FUN_003811-T1","FUN_001245-T1","FUN_009019-T1", "FUN_009941-T1")
+EnhancedVolcanoPlot1 <- EnhancedVolcano(res_Ax_YP206,
+                                        lab = rownames(res_Ax_YP206),
+                                        selectLab = chosen_genes,
+                                        #selectLab = NA,
+                                        x = 'log2FoldChange',
+                                        y = 'padj',
+                                        title = "YP206 vs. Axenic",
+                                        subtitle = bquote(italic("Growth inhibiting")),
+                                        legendPosition = 'top',
+                                        pCutoff = pCutoff,
+                                        FCcutoff = FCcutoff,
+                                        drawConnectors = TRUE,
+                                        widthConnectors = 1.0,
+                                        ylim = ylim1,
+                                        xlim = xlim1
+                                        )
+
+EnhancedVolcanoPlot2 <- EnhancedVolcano(res_Ax_YP206_s,
+                                        lab = rownames(res_Ax_YP206_s),
+                                        selectLab = chosen_genes,
+                                        #selectLab = NA,
+                                        x = 'log2FoldChange',
+                                        y = 'padj',
+                                        title = "YP206 vs. Axenic",
+                                        subtitle = bquote(italic("Growth inhibiting")),
+                                        legendPosition = 'top',
+                                        pCutoff = pCutoff,
+                                        FCcutoff = FCcutoff,
+                                        drawConnectors = TRUE,
+                                        widthConnectors = 1.0,
+                                        ylim = ylim1,
+                                        xlim = xlim1
+)
+
+res_Ax_YP26[order(res_Ax_YP26$log2FoldChange),]
+chosen_genes <- c("FUN_001583-T2","FUN_001827-T1", "FUN_010099-T1","FUN_009941-T1")
+EnhancedVolcanoPlot3 <- EnhancedVolcano(res_Ax_YP26,
+                                        lab = rownames(res_Ax_YP26),
+                                        selectLab = chosen_genes,
+                                        #selectLab = NA,
+                                        x = 'log2FoldChange',
+                                        y = 'padj',
+                                        title = "YP26 vs. Axenic",
+                                        subtitle = bquote(italic("Growth enhancing")),
+                                        legendPosition = 'top',
+                                        pCutoff = pCutoff,
+                                        FCcutoff = FCcutoff,
+                                        drawConnectors = TRUE,
+                                        widthConnectors = 1.0,
+                                        ylim = ylim1,
+                                        xlim = xlim1
+                                        )
+
+EnhancedVolcanoPlot4 <- EnhancedVolcano(res_Ax_YP26_s,
+                                        lab = rownames(res_Ax_YP26_s),
+                                        selectLab = chosen_genes,
+                                        #selectLab = NA,
+                                        x = 'log2FoldChange',
+                                        y = 'padj',
+                                        title = "YP26 vs. Axenic",
+                                        subtitle = bquote(italic("Growth enhancing")),
+                                        legendPosition = 'top',
+                                        pCutoff = pCutoff,
+                                        FCcutoff = FCcutoff,
+                                        drawConnectors = TRUE,
+                                        widthConnectors = 1.0,
+                                        ylim = ylim1,
+                                        xlim = xlim1
+)
+
+head(res_Ax_NonAx_s[order(res_Ax_NonAx_s$padj),],10)
+
+chosen_genes <- c("FUN_009941-T1","FUN_003385-T1","FUN_003811-T1","FUN_006115-T1","FUN_002312-T1","FUN_009514-T1","FUN_006115-T1","FUN_007788-T2","FUN_001827-T1")
+EnhancedVolcanoPlot5 <- EnhancedVolcano(res_Ax_NonAx,
+                                        lab = rownames(res_Ax_NonAx),
+                                        selectLab = chosen_genes,
+                                        #selectLab = NA,
+                                        x = 'log2FoldChange',
+                                        y = 'padj',
+                                        title = "NonAxenic vs. Axenic",
+                                        subtitle = bquote(italic("Natural community")),
+                                        legendPosition = 'top',
+                                        pCutoff = pCutoff,
+                                        FCcutoff = FCcutoff,
+                                        drawConnectors = TRUE,
+                                        widthConnectors = 1.0,
+                                        ylim = ylim1,
+                                        xlim = xlim1
+                                        )
+
+EnhancedVolcanoPlot6 <- EnhancedVolcano(res_Ax_NonAx_s,
+                                        lab = rownames(res_Ax_NonAx_s),
+                                        selectLab = chosen_genes,
+                                        #selectLab = NA,
+                                        x = 'log2FoldChange',
+                                        y = 'padj',
+                                        title = "NonAxenic vs. Axenic",
+                                        subtitle = bquote(italic("Natural community")),
+                                        legendPosition = 'top',
+                                        pCutoff = pCutoff,
+                                        FCcutoff = FCcutoff,
+                                        drawConnectors = TRUE,
+                                        widthConnectors = 1.0,
+                                        ylim = ylim1,
+                                        xlim = xlim1
+)
+
+Combined_unshrunk <- EnhancedVolcanoPlot5 + EnhancedVolcanoPlot3 + EnhancedVolcanoPlot1 
+Combined_shrunken <- EnhancedVolcanoPlot6 + EnhancedVolcanoPlot4 + EnhancedVolcanoPlot2
+
+Combined_all <- Combined_unshrunk / Combined_shrunken
 
 
+ggsave(
+  "Volcano_Combined_all.pdf",
+  plot = Combined_all,
+  path = "R_outputs/",
+  height = 15,
+  width = 12,
+  dpi = 1000
+)
+
+
+#------------------------DEGs-plotCounts----------------------------------------
+# genes chosen from looking at the volcano plots
+
+par(mfrow=c(3,3))
+plotCounts(dds, gene="FUN_003385-T1", intgroup="sample_type")
+plotCounts(dds, gene="FUN_009941-T1", intgroup="sample_type")
+plotCounts(dds, gene="FUN_006115-T1", intgroup="sample_type")
+plotCounts(dds, gene="FUN_001827-T1", intgroup="sample_type")
+plotCounts(dds, gene="FUN_003811-T1", intgroup="sample_type")
+plotCounts(dds, gene="FUN_002312-T1", intgroup="sample_type")
+plotCounts(dds, gene="FUN_001733-T1", intgroup="sample_type")
+plotCounts(dds, gene="FUN_008144-T1", intgroup="sample_type")
+dev.off()
+
+# Investigate which of the replicates where this gene varies and check if
+# it fits with the replicates that are outliers in the PCA plot
+normalized_counts <- counts(dds, normalized=TRUE)
+normalized_counts[rownames(normalized_counts)=="FUN_009941-T1",]
+
+# Axenic.1    Axenic.2    Axenic.3 NonAxenic.1 NonAxenic.2 NonAxenic.3     YP206.1     YP206.2     YP206.3 
+# 0.000000    0.000000    0.000000    0.000000   13.073085   59.152967    6.613505    0.000000    0.000000 
+# YP26.1      YP26.2      YP26.3 
+# 0.000000  100.404782    0.000000 
