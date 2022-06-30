@@ -1,36 +1,110 @@
-library("DESeq2")
-#Tutorial: https://lashlock.github.io/compbio/R_presentation.html
+# Find the distribution of your data to determine statistical model. 
+# DESeq uses a negative binomial model to analyse data where the mean < variance. 
+#Tutorial: https://github.com/hbctraining/DGE_workshop/blob/master/lessons/01_DGE_setup_and_overview.md
 
-setwd("C:/Users/hr/Documents/AlgaeProject_R_scripts/")
+#-----------Libraries-and-path--------------------------------------------------
+library("ggplot2") #for plotting
+library("DESeq2") # for DESeq analysis
+library("vegan") #to make adonis analysis
+library("ashr")
+#-----------Load-data-----------------------------------------------------------
 
-#countData formated in MergeTables.R
-countData <- read.csv("MergeTables_collector_cds.csv", header=T, sep=",")
-head(countData)
+setwd("C:/Users/hr/Documents/AlgaeProject_R_scripts")
 
-metaData <- read.csv('sample_info_cds.csv', header = TRUE, sep = ";")
-metaData
+source("00_functions.R")
+#path_to_data <- "C:/Users/hr/Documents/AlgaeProject_R_scripts/sample_info/"
+metaData <- read_clean_metaData()
+countData <- read_clean_countData()
 
-# Ensure that nrow(metaData) == ncol(countData) -1
-nrow(metaData) # X-1
-ncol(countData) # X
+#-----------Make-DESeq-Object---------------------------------------------------
+# Make sure you have right format to make the DESeq Object:
+nrow(metaData) # X
+ncol(countData) # X+1
 
-#renaming "gene names" to less overwhelming names
-countDataShort <- countData
-countDataShort[1] <- sapply(strsplit(countDataShort[,1], ".model"), '[',1)
-
-dds <- DESeqDataSetFromMatrix(countData=countDataShort, 
+dds_dat <- DESeqDataSetFromMatrix(countData=countData, 
                               colData=metaData, 
                               design=~sample_type, tidy = TRUE)
-
-dds <- DESeq(dds)
+dds <- DESeq(dds_dat)
+keep <- rowSums(counts(dds)) >=10
+dds <- dds[keep,]
 
 res <- results(dds)
-summary(res)
 
-# Sort the result table by p value
+
+
+#------make-contrasts-----------------------------------------------------------
+
+#p_threshold <- 0.05
+
+res_Ax_NonAx <- results(dds, contrast=c("sample_type","NonAxenic","Axenic"))
+
+res_Ax_YP206 <- results(dds, contrast=c("sample_type","YP206","Axenic"))
+
+res_Ax_YP26 <- results(dds, contrast=c("sample_type","YP26","Axenic"))
+
+#shrunken values:
+res_Ax_NonAx_s <- lfcShrink(dds, contrast=c("sample_type","NonAxenic","Axenic"), res=res_Ax_NonAx, type="ashr")
+
+res_Ax_YP206_s <- lfcShrink(dds, contrast=c("sample_type","YP206","Axenic"), res=res_Ax_YP206, type="ashr")
+
+res_Ax_YP26_s <- lfcShrink(dds,  contrast=c("sample_type","YP26","Axenic"), res=res_Ax_YP26, type="ashr")
+
+
+
+# Reorder the genes
 res <- res[order(res$padj),]
+summary(res)
 head(res)
+length(res$log2FoldChange) #10841
 
-# Investigate your normalization of counts with DESEq in this tutorial:
-# https://github.com/hbctraining/DGE_workshop/blob/master/lessons/02_DGE_count_normalization.md
+saveRDS(dds, "R_outputs/dds.rds")
+saveRDS(res, "R_outputs/res.rds")
+
+
+# sort so that the small padj are in the top of the res tables.
+res_Ax_NonAx <- res_Ax_NonAx[order(res_Ax_NonAx$padj),]
+res_Ax_YP206 <- res_Ax_YP206[order(res_Ax_YP206$padj),]
+res_Ax_YP26 <- res_Ax_YP26[order(res_Ax_YP26$padj),]
+
+# sort so that the small padj are in the top of the res tables.
+res_Ax_NonAx_s <- res_Ax_NonAx_s[order(res_Ax_NonAx_s$padj),]
+res_Ax_YP206_s <- res_Ax_YP206_s[order(res_Ax_YP206_s$padj),]
+res_Ax_YP26_s <- res_Ax_YP26_s[order(res_Ax_YP26_s$padj),]
+
+
+# count all the DEGs in the three contrasts
+nrow(res_Ax_NonAx) 
+nrow(res_Ax_YP206) 
+nrow(res_Ax_YP26) 
+# 10841 for all
+
+#Check they all look OK and doesnt contain NAs
+head(res_Ax_NonAx)
+head(res_Ax_YP206)
+head(res_Ax_YP26)
+
+summary(res_Ax_NonAx)
+summary(res_Ax_YP206)
+summary(res_Ax_YP26)
+
+
+# A lot of NAs
+sum(is.na(res_Ax_NonAx$padj)) #2
+sum(is.na(res_Ax_YP206$padj)) #422
+sum(is.na(res_Ax_YP26$padj)) #2
+
+
+# A lot of NAs
+sum(is.na(res_Ax_NonAx_s$padj)) #2
+sum(is.na(res_Ax_YP206_s$padj)) #422
+sum(is.na(res_Ax_YP26_s$padj)) #2
+
+
+saveRDS(res_Ax_NonAx, "R_outputs/res_Ax_NonAx.rds")
+saveRDS(res_Ax_YP206, "R_outputs/res_Ax_YP206.rds")
+saveRDS(res_Ax_YP26, "R_outputs/res_Ax_YP26.rds")
+
+saveRDS(res_Ax_NonAx_s, "R_outputs/res_Ax_NonAx_s.rds")
+saveRDS(res_Ax_YP206_s, "R_outputs/res_Ax_YP206_s.rds")
+saveRDS(res_Ax_YP26_s, "R_outputs/res_Ax_YP26_s.rds")
 
