@@ -1,26 +1,79 @@
 # Find the distribution of your data to determine statistical model. 
 # DESeq uses a negative binomial model to analyse data where the mean < variance. 
-
 #Tutorial: https://github.com/hbctraining/DGE_workshop/blob/master/lessons/01_DGE_setup_and_overview.md
+
+#-----------Libraries-and-path--------------------------------------------------
 library("ggplot2")
+library("patchwork")
+setwd("C:/Users/hr/Documents/AlgaeProject_R_scripts")
 
-# Distribution of gene counts for one sample: Ax1_oceanica_cds_renamed
-ggplot(countDataShort) +
-  geom_histogram(aes(x = Ax1_oceanica_cds_renamed), stat = "bin", bins = 200) +
-  xlim(-5,30000)
-  xlab("Raw expression counts") +
-  ylab("Number of genes")
+#-----------Load-count-and-metadata---------------------------------------------
 
+source("00_functions.R")
+#path_to_data <- "C:/Users/hr/Documents/AlgaeProject_R_scripts/sample_info/"
+metaData <- read_clean_metaData()
+countData <- read_clean_countData()
+
+#-----------Investigate count distribution plots--------------------------------
+
+Axenic1_CountDistribution <- ggplot(countData) +
+                              geom_histogram(aes(x = Axenic.1), stat = "bin", bins = 200, color="Navy") +
+                              xlim(-5,30000)+
+                              xlab("Raw expression counts") +
+                              ylab("Number of genes") + theme_Publication()+
+                              theme(axis.title.x = element_text(size = 15), 
+                                    axis.title.y = element_text(size = 15), 
+                                    axis.text.x = element_text(size=12), 
+                                    axis.text.y = element_text(size=12))
+
+Axenic1_CountDistribution
 
 # Investigate if mean < variance
-mean_counts <- apply(countDataShort[, 3:5], 1, mean)
-variance_counts <- apply(countDataShort[, 3:5], 1, var)
+mean_counts <- apply(countData[,2:13], 1, mean) 
+#The mean is taken of the rows! This means that we calculate the mean of one gene
+# across all of the samples, NOT just the triplicates. But ALL of the samples.
+variance_counts <- apply(countData[,2:13], 1, var)
+# Again, the variance is taken across ALL of the samples of each gene. Not just
+# the triplicates.
+
 df <- data.frame(mean_counts, variance_counts)
 
-ggplot(df) +
-  geom_point(aes(x=mean_counts, y=variance_counts)) + 
-  geom_line(aes(x=mean_counts, y=mean_counts, color="red")) +
-  scale_y_log10() +
-  scale_x_log10()
+p_variance_mean <- ggplot(df) +
+                  geom_point(aes(x=mean_counts, y=variance_counts), alpha=0.3, color= "Navy") + 
+                  geom_line(aes(x=mean_counts, y=mean_counts, color="red"), size=1)+
+                  scale_y_log10() +
+                  scale_x_log10() + 
+                  xlab("Mean of counts") +
+                  ylab("Variance of counts") + theme_Publication()+
+                  theme(axis.title.x = element_text(size = 15), 
+                      axis.title.y = element_text(size = 15), 
+                      axis.text.x = element_text(size=12), 
+                      axis.text.y = element_text(size=12),
+                      legend.position="none")
 
-# As the variance tends to be greater than the mean, I should analyse data with a negative binomial model and therefore use DESeq.
+
+p_variance_mean
+# A little explanation: https://www.youtube.com/watch?v=0b24mpzM_5M
+
+save <- Axenic1_CountDistribution + p_variance_mean
+save <- save + plot_annotation(tag_levels = 'A') & theme(plot.tag = element_text(size = 17))
+save
+
+ggsave(
+  "Count_distribution1.pdf",
+  plot = Axenic1_CountDistribution,
+  path = "R_outputs/",
+  height = 6,
+  width = 5,
+  dpi = 1000
+)
+
+ggsave(
+  "p_variance_mean.pdf",
+  plot = p_variance_mean,
+  path = "R_outputs/",
+  height = 6,
+  width = 5,
+  dpi = 1000
+)
+
