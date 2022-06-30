@@ -1,9 +1,120 @@
-# Tutorial: https://lashlock.github.io/compbio/R_presentation.html
+#-----------Libraries-and-path--------------------------------------------------
+library("ggplot2") #for plotting
+library("DESeq2") # for DESeq analysis
 
-# First we need to transform the raw count data
-# vst function will perform variance stabilizing transformation
-# (not completely sure what that means yet)
+#-----------Load-data-----------------------------------------------------------
+setwd("C:/Users/hr/Documents/AlgaeProject_R_scripts")
 
-vsdata <- vst(dds, blind=FALSE)
+# made in 03_DESeqObject
+res_Ax_NonAx <- readRDS("R_outputs/res_Ax_NonAx.rds")
+res_Ax_YP206 <- readRDS("R_outputs/res_Ax_YP206.rds")
+res_Ax_YP26 <- readRDS("R_outputs/res_Ax_YP26.rds")
 
-plotPCA(vsdata, intgroup="sample_type") #using the DESEQ2 plotPCA fxn we can
+# Load the annotation file. 
+# made with funnanotate in Linux
+annotation <- read.csv("funannotate/Nannochloropsis_oceanica_CCAP211.annotations.txt", header = T, sep="\t")
+
+#-------------------------------limited Venn diagram----------------------------
+# Only investigating what significant genes they have in common
+
+pval_threshold <- 0.05
+DEGs_up <- list(
+  Axenic_YP206 = row.names(res_Ax_YP206_s[which(res_Ax_YP206_s$padj <= pval_threshold & res_Ax_YP206$log2FoldChange>0), ]),
+  Axenic_YP26 = row.names(res_Ax_YP26_s[which(res_Ax_YP26_s$padj <= pval_threshold & res_Ax_YP26$log2FoldChange>0), ]),
+  Axenic_NonAxenic = row.names(res_Ax_NonAx_s[which(res_Ax_NonAx_s$padj <= pval_threshold & res_Ax_NonAx_s$log2FoldChange>0), ])
+)
+
+DEGs_down <- list(
+  Axenic_YP206 = row.names(res_Ax_YP206_s[which(res_Ax_YP206_s$padj <= pval_threshold & res_Ax_YP206$log2FoldChange<0), ]),
+  Axenic_YP26 = row.names(res_Ax_YP26_s[which(res_Ax_YP26_s$padj <= pval_threshold & res_Ax_YP26$log2FoldChange<0), ]),
+  Axenic_NonAxenic = row.names(res_Ax_NonAx_s[which(res_Ax_NonAx_s$padj <= pval_threshold & res_Ax_NonAx_s$log2FoldChange<0), ])
+)
+
+source("00_functions.R")
+display_venn(DEGs_down,
+             category.names = c("Axenic vs. YP206", "Axenic vs. YP26", "Axenic vs. NonAxenic"),
+             # Circles
+             lwd = 2,
+             lty = 'blank',
+             fill =c("#E69F00", "#0072B2","#009E73"),
+             # Numbers
+             fontfamily = "sans",
+             cex = 1.6,
+             # Set names
+             main = "Up-regulated DEGs",
+             main.cex = 2,
+             main.fontfamily = "sans",
+             cat.cex = 1.3,
+             cat.fontface = "bold",
+             cat.fontfamily = "sans",
+             cat.default.pos = "outer",
+             cat.dist = c(-0.03, -0.03, -0.03)
+)
+
+
+# Save the picture in high quality
+venn.diagram(DEGs_up, filename = "R_outputs/VennD_down.png",
+             category.names = c("YP206 vs. Axenic", "YP26 vs. Axenic", "NonAxenic vs. Axenic"),
+             # Circles
+             lwd = 3,
+             lty = 'blank',
+             fill =c("#E69F00", "#0072B2","#009E73"),
+             # Numbers
+             fontfamily = "sans",
+             cex = 1.6,
+             # Set names
+             main = "Down-regulated DEGs",
+             main.cex = 2,
+             main.fontfamily = "sans",
+             cat.cex = 1.4,
+             cat.fontface = "bold",
+             cat.fontfamily = "sans",
+             cat.default.pos = "outer",
+             cat.dist = c(-0.03, -0.03, -0.03),
+             imagetype = "png"
+)
+
+
+#------Write tables with DEGs in different contrasts----------------------------
+
+# from 00_functions 
+source("00_functions.R")
+top20_Axenic_NonAxenic <- makeTop20DEGsTable(res_Ax_NonAx, annotation)
+top20_Axenic_YP206 <- makeTop20DEGsTable(res_Ax_YP206, annotation)
+top20_Axenic_YP26 <- makeTop20DEGsTable(res_Ax_YP26, annotation)
+
+
+#-----Function that write the names of genes in common
+#Maybe change this so you get ALL of the genes so that you can for example get the three common genes.
+gc(verbose = TRUE, reset = TRUE)
+# prepare data
+input <-  list(
+  top20_Axenic_NonAxenic = top20_Axenic_NonAxenic,
+  top20_Axenic_YP206     = top20_Axenic_YP206, 
+  top20_Axenic_YP26      = top20_Axenic_YP26)
+
+# from 00_functions
+DEGs_allocation <- sharedDEGs(input)
+
+#merge to annotation
+
+DEG_names <- DEGs_allocation$all_DEGs_unique
+DEG_annotation <- annotation[annotation$TranscriptID == DEG_names[1],]
+
+for (i in DEG_names[-1]){
+  temp = annotation[annotation$TranscriptID == i,]
+  DEG_annotation=rbind(DEG_annotation,temp)
+}
+
+#choosing the first information in InterPro section
+interpro_info <- DEG_annotation$InterPro
+interpro_info <- sapply(strsplit(interpro_info, ";"), '[',1)
+
+DEG_annotation_simple <- cbind(DEGs_allocation,
+                               DEG_annotation$Name, 
+                               DEG_annotation$Product, 
+                               interpro_info)
+
+write.csv2(DEG_annotation_simple,"R_outputs/top20_Shared_DEGs.csv", row.names = T)
+
+View(DEG_annotation_simple)
